@@ -89,10 +89,7 @@ doc_events = {
 }
 
 # ─── After Install / Migrate ──────────────────────────────────────────────────
-override_html = {"crm/public/frontend/index.html": "st_crm_helper/public/frontend/index.html"}
-
-base_template_hook = "st_crm_helper.hooks_utils.inject_scripts"
-
+after_request = "st_crm_helper.hooks_utils.after_request"
 # ─── After Install / Migrate ──────────────────────────────────────────────
 after_install = "st_crm_helper.install.after_install"
 after_migrate = ["st_crm_helper.install.after_migrate"]
