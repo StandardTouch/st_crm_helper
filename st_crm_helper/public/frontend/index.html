@@ -193,20 +193,23 @@
       href="/assets/crm/manifest/apple-splash-1136-640.jpg"
       media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
     />
+
+    <!-- ★ ST CRM Helper — MUST load before the Vue bundle so fetch is patched early ★ -->
+    <script src="/assets/st_crm_helper/js/department_filter.js"></script>
+    <script src="/assets/st_crm_helper/js/crm_dashboard_dept.js"></script>
+
     <script type="module" crossorigin src="/assets/crm/frontend/assets/index-63b27b88.js"></script>
     <link rel="stylesheet" href="/assets/crm/frontend/assets/index-b9b330c6.css">
-  <link rel="manifest" href="/assets/crm/frontend/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/assets/crm/frontend/registerSW.js"></script><script src="/assets/st_crm_helper/js/department_filter.js"></script>
-<script src="/assets/st_crm_helper/js/crm_dashboard_dept.js"></script>
-</head>
+    <link rel="manifest" href="/assets/crm/frontend/manifest.webmanifest">
+    <script id="vite-plugin-pwa:register-sw" src="/assets/crm/frontend/registerSW.js"></script>
+  </head>
   <body class="sm:overscroll-y-none no-scrollbar">
     <div id="app" class="h-full"></div>
-    
-  
-          <script>
-              {% for key in boot %}
-              window["{{ key }}"] = {{ boot[key] | tojson }};
-              {% endfor %}
-          </script>
-          </body>
-          
+
+    <script>
+        {% for key in boot %}
+        window["{{ key }}"] = {{ boot[key] | tojson }};
+        {% endfor %}
+    </script>
+  </body>
 </html>
