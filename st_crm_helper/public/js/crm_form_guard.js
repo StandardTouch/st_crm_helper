@@ -1,14 +1,11 @@
 /**
- * ST CRM Helper — CRM Form Guard
- * ================================
- * Injected via doctype_js into all 7 CRM doctypes.
+ * ST CRM Helper — CRM Form Guard + Department Dropdown
+ * ======================================================
+ * Injected via doctype_js into all 6 CRM doctypes.
  *
- * On form load, checks whether the record's department is in the
- * current user's allowed department list.
- * If NOT → silently redirects back to the list view.
- *
- * This is the frontend half of Layer 2 enforcement.
- * The server-side has_permission hook is Layer 1 (Python).
+ * 1. On form load — guards access by department (bypass for admin/manager)
+ * 2. On new record — injects a department Link field dropdown filtered to
+ *    the user's own departments (or all depts for admin/manager)
  */
 
 (function () {
@@ -26,31 +23,41 @@
 	GUARDED_DOCTYPES.forEach((dt) => {
 		frappe.ui.form.on(dt, {
 			async onload(frm) {
-				// Skip brand-new unsaved records
-				if (frm.is_new()) return;
+				// Ensure dept data is loaded
+				const data = await stCrmHelper.fetchDeptData();
 
-				await _guardRecord(frm);
+				// ── 1. Access guard ──────────────────────────────────────
+				if (!frm.is_new()) {
+					await _guardRecord(frm, data);
+				}
+
+				// ── 2. Department dropdown ───────────────────────────────
+				await _setupDeptField(frm, data);
+			},
+
+			async refresh(frm) {
+				// Re-setup dropdown on every refresh (handles new → saved transition)
+				const data = await stCrmHelper.fetchDeptData();
+				await _setupDeptField(frm, data);
 			},
 		});
 	});
 
-	async function _guardRecord(frm) {
-		try {
-			// Ensure dept data is loaded (usually already cached from list view)
-			const data = await stCrmHelper.fetchDeptData();
 
-			// Bypass users (System Manager / Admin) see everything
+	// ── Access guard ──────────────────────────────────────────────────────────
+
+	async function _guardRecord(frm, data) {
+		try {
+			// Bypass users (admin) and managers see everything
 			if (data.bypass) return;
 
 			const recordDept = frm.doc.department;
 
-			// Records with no department set (legacy) — allow through
+			// Legacy records with no department — allow through
 			if (!recordDept) return;
 
 			const allowed = data.departments || [];
-
 			if (!allowed.includes(recordDept)) {
-				// Silently redirect — do not show the record at all
 				frappe.set_route("List", frm.doctype);
 				frappe.show_alert(
 					{ message: __("Access restricted to your department."), indicator: "red" },
@@ -61,4 +68,44 @@
 			console.error("ST CRM Helper: form guard error", err);
 		}
 	}
+
+
+	// ── Department Link field setup ───────────────────────────────────────────
+
+	async function _setupDeptField(frm, data) {
+		try {
+			// Fetch available dept options for this user
+			const r = await frappe.call({
+				method: "st_crm_helper.api.department.get_department_options",
+				freeze: false,
+			});
+
+			const options = r.message || [];
+
+			if (!options.length) return;
+
+			// Set Link field filter so the picker only shows allowed depts
+			frm.set_query("department", () => {
+				return {
+					filters: {
+						name: ["in", options.map((o) => o.value)],
+						is_active: 1,
+					},
+				};
+			});
+
+			// Auto-select dept on new records if user has exactly one dept
+			if (frm.is_new() && !frm.doc.department && !data.bypass && options.length === 1) {
+				frm.set_value("department", options[0].value);
+			}
+
+			// Make field visible and mandatory for non-admin users
+			frm.set_df_property("department", "hidden", 0);
+			frm.set_df_property("department", "reqd", data.bypass ? 0 : 1);
+
+		} catch (err) {
+			console.error("ST CRM Helper: dept field setup error", err);
+		}
+	}
+
 })();
